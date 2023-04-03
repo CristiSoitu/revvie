@@ -11,7 +11,7 @@ def ConfigReader(config_file):
     # returns argparse object with all the config values
     config = configparser.ConfigParser()
     config.read(config_file)
-    config = config['DATASET_SPECIFIC']
+    config = config['DEFAULT']
     
     parser = argparse.ArgumentParser()
     # for config.positions remove the brackets. and split by comma
@@ -30,6 +30,16 @@ def ConfigReader(config_file):
 
     parser.add_argument('--opacity', default=config['opacity'], type=float)
     parser.add_argument('--symbol', default=config['symbol'], type=str)
+
+    parser.add_argument('--save_match_key', default=config['save_match_key'], type=str)
+    parser.add_argument('--save_state_key', default=config['save_state_key'], type=str)
+    parser.add_argument('--delete_match_key', default=config['delete_match_key'], type=str)
+    parser.add_argument('--run_alignment_key', default=config['run_alignment_key'], type=str)
+    parser.add_argument('--validate_prediction_key', default=config['validate_prediction_key'], type=str)
+    parser.add_argument('--reject_prediction_key', default=config['reject_prediction_key'], type=str)
+    parser.add_argument('--maybe_prediction_key', default=config['maybe_prediction_key'], type=str)
+
+    parser.add_argument('--matcher_name', default='Matcher', type=str)
 
 
         
@@ -75,37 +85,38 @@ def load_latest_state(args):
             latest_state_path = quick_dir(position_path, 'latest')
             z = get_trailing_number(position)
             z = int(z)
+            
             points = vitro_points_np[vitro_points_np[:, 0] == z]
             true_points = points.copy()
-            matches = np.empty((0, 2))
-            predicted = np.empty((0, 2))
-            rejected = np.empty((0, 2))
+
             colors = np.ones_like(points[:, :3])
-            
-             
             colors = colors * args.unmatched_color
             edge_colors = colors.copy()
-           
             points = points[:, :4]
             points = np.hstack((points, colors))
             points = np.hstack((points, edge_colors))
 
 
             np.save(latest_state_path + 'displayed_points.npy', points)
-            np.savetxt(latest_state_path + 'displayed_points.txt', points, fmt='%i')
+            np.savetxt(latest_state_path + 'displayed_points.txt', points, fmt='%.1f')
             
             np.save(latest_state_path + 'true_points.npy', true_points)
-            np.savetxt(latest_state_path + 'true_points.txt', true_points)
+            np.savetxt(latest_state_path + 'true_points.txt', true_points, fmt='%.1f')
             
-            np.save(latest_state_path + 'matches.npy', matches)
-            np.savetxt(latest_state_path + 'matches.txt', matches)
+            np.save(latest_state_path + 'matches.npy', np.empty((0, 2), dtype=np.int32))
+            np.savetxt(latest_state_path + 'matches.txt', np.empty((0, 2), dtype=np.int32), fmt='%i')
 
-            np.save(latest_state_path + 'predicted.npy', predicted)
-            np.savetxt(latest_state_path + 'predicted.txt', predicted)
+            np.save(latest_state_path + 'predicted.npy', np.empty((0, 2), dtype=np.int32))
+            np.savetxt(latest_state_path + 'predicted.txt', np.empty((0, 2), dtype=np.int32), fmt='%i')
 
-            np.save(latest_state_path + 'rejected.npy', rejected)
-            np.savetxt(latest_state_path + 'rejected.txt', rejected)
+            np.save(latest_state_path + 'rejected.npy', np.empty((0, 2), dtype=np.int32))
+            np.savetxt(latest_state_path + 'rejected.txt', np.empty((0, 2), dtype=np.int32), fmt='%i')
 
+            np.save(latest_state_path + 'vivo_matched_indices.npy', np.empty((0, 1)))
+            np.savetxt(latest_state_path + 'vivo_matched_indices.txt', np.empty((0, 1)), fmt='%i')
+
+            np.save(latest_state_path + 'vivo_matched_points.npy', np.empty((0, 10)))
+            np.savetxt(latest_state_path + 'vivo_matched_points.txt', np.empty((0, 10)), fmt='%.1f')
 
 
         vivo_points = np.loadtxt(revvie_path + 'centroids/padded_func_centroids.txt')
@@ -127,20 +138,36 @@ def load_latest_state(args):
         
     vitro_points = np.empty((0, 10))
     slices_path = quick_dir(revvie_path, 'slices')
+    
+    vivo_points = np.load(stack_path + 'vivo_points.npy').astype(np.float32)
 
     for position in positions:
         position_path = quick_dir(slices_path, position)
         latest_state_path = quick_dir(position_path, 'latest')
         
-        displayed_points = np.load(latest_state_path + 'displayed_points.npy')
-        true_points = np.load(latest_state_path + 'true_points.npy')
-        matches = np.load(latest_state_path + 'matches.npy')
-        predicted = np.load(latest_state_path + 'predicted.npy')
-        
+        displayed_points = np.load(latest_state_path + 'displayed_points.npy').astype(np.float32)
+        #true_points = np.load(latest_state_path + 'true_points.npy')
+        #matches = np.load(latest_state_path + 'matches.npy')
+        #predicted = np.load(latest_state_path + 'predicted.npy')    
         vitro_points = np.vstack((vitro_points, displayed_points))
-        
-    vivo_points = np.load(stack_path + 'vivo_points.npy')
 
+        vivo_indices = np.loadtxt(latest_state_path + 'vivo_matched_indices.txt').astype(np.int32)
+        if len(vivo_indices) > 0:
+            vivo_matched_points = np.loadtxt(latest_state_path + 'vivo_matched_points.txt').astype(np.float32)
+            print(vivo_indices.dtype)
+            print(vivo_matched_points.dtype)
+            print('vivo_indices', vivo_indices)
+            print('vivo_points[vivo_indices]', vivo_points[vivo_indices])
+            vivo_points[vivo_indices] = vivo_matched_points
+        else:
+            continue
+
+
+#        try:
+#            vivo_points[vivo_indices] = vivo_matched_points
+
+ #       except IndexError:
+ #           continue
     return vitro_points, vivo_points
 
 

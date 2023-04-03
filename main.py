@@ -13,7 +13,11 @@ config_file = dataset_path + 'revvie_config.toml'
 def main():
     args = ConfigReader(config_file)
 
-    vitro_images_list = ['blood_vessels.tif']
+    #run_automatch(args)    
+    #breakpoint()
+
+
+    vitro_images_list = ['blood_vessels.tif', 'somas_blood_vessels.tif']
     vitro_images_list = [args.dataset_path + '/revvie/images/' + image for image in vitro_images_list]
     vivo_images_list = ['rotated_blood_vessels_stack.tif']
     vivo_images_list = [args.dataset_path + 'revvie/images/' + image for image in vivo_images_list]
@@ -31,7 +35,7 @@ def main():
                                     size=args.vivo_point_size, opacity=args.opacity, edge_width=args.vivo_edge_size, symbol=args.symbol, ndim=3, name='points',
                                     matched_color=args.matched_color, unmatched_color=args.unmatched_color, accepted_edge_color=args.accepted_edge_color, rejected_edge_color=args.rejected_edge_color)            
     # create revvie viewer
-    revViewer = RevViewer(vitro_images_list, vivo_images_list, vitro_cloud_points, vivo_cloud_points)
+    revViewer = RevViewer(vitro_images_list, vivo_images_list, vitro_cloud_points, vivo_cloud_points, args)
 
     revViewer.run()
 

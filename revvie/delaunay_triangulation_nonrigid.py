@@ -231,15 +231,16 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
     max_affine_iters = 30000
     tr = 10  # volume thrshold constant for GMM
 
+
     invivo_avg_cent = np.array([[invivo_cent[invivo_cent[:, 3] == i, 0].mean(),
                                 invivo_cent[invivo_cent[:, 3] == i, 1].mean(),
                                 invivo_cent[invivo_cent[:, 3] == i, 2].mean(), i]
                                for i in pd.unique(invivo_cent[:, 3])])
     # Preserve order
-    invitro_matches = invitro_cent[[np.where(np.isin(invitro_cent[:, 3], x))[
-        0][0] for x in match_df[:, 0]]]
-    invivo_matches = invivo_avg_cent[[np.where(np.isin(invivo_cent[:, 3], x))[
-        0][0] for x in match_df[:, 1]]]
+
+    invitro_matches = invitro_cent[[np.where(np.isin(invitro_cent[:, 3], x))[0][0] for x in match_df[:, 0]]]
+
+    invivo_matches = invivo_avg_cent[[np.where(np.isin(invivo_cent[:, 3], x))[0][0] for x in match_df[:, 1]]]
     sliceids = np.unique(invitro_matches[:, 0])
 
     # Create transform information saving.
