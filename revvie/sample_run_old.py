@@ -1,16 +1,3 @@
-# import numpy as np
-# import scipy
-# import statistics as stat
-# from scipy import spatial
-# from scipy import stats
-# import math
-# import csv
-# import torch
-# import pandas as pd
-# from torch import optim
-# from torch.nn import functional as F
-# from torch.distributions.multivariate_normal import MultivariateNormal
-# import random
 
 f = open('delaunay_triangulation_nonrigid.py')
 source = f.read()
@@ -22,7 +9,7 @@ exec(source)
 #######################
 
 
-# Required initialization.
+# Test case
 
 # with open('/D/Dropbox/matched datasets/BCM27679/matching/tables/all_geneseq_cells.csv', newline='') as csvfile:
 #     full_stack_match = csv.reader(csvfile, delimiter=" ")
@@ -49,14 +36,10 @@ stack_match = np.array([[rot_struct[rot_struct[:, 3] == i, 2][0],
                            for i in matches['sunit_ID']])
 random_seed = None  # Seed for torch random number generator, if desired.
 
-# Create lookup dict for all invivo units.
-# invivo_coordlookup = unit_hash_3d(np.array(rot_struct).astype(float))
 
 #######################
 #######################
 #######################
-
-### Specific data format run.
 
 # Convert data to x-y-z-ID
 all_slice_cent = all_slice_cent[:, [0, 2, 1, 3]]
@@ -67,7 +50,6 @@ rot_struct = rot_struct[:, [2, 1, 0, 3]]
 # Unit IDs of manual matches.
 match_arr = np.array(matches)[:, [1, 10]]
 match_arr[:, 1] = match_arr[:, 1].astype(int)
-
 
 #######################
 #######################
@@ -80,16 +62,13 @@ pc_return = piecewise_affine_cent(all_slice_cent, rot_struct, match_arr)
 # torch.save(pc_return, '/D/ImageMatch/superaffine.pt')
 
 # Nonrigid
-
-## Filter out to only invitro units 
+near_invivo_cents = pc_return['invivo_units'].iloc[np.where(np.isin(pc_return['invivo_units']['ID'], 
+                                                      pc_return['matching_probs']['StackUnit']))[0], :][['X', 'Y', 'Z', 'ID']]
 aff_invitro_coords = pc_return['invitro_units_trans'].loc[:, ['3D_X', '3D_Y', '3D_Z', 'ID']]
-
 test_nonrigid = nonrigid_demon(aff_invitro_cent = aff_invitro_coords,
-                                invivo_cent = pc_return['invivo_near_units'],
+                                invivo_cent = near_invivo_cents,
                                 match_df = pc_return['manual_matches'],
-                                invivo_l = pc_return['invivo_lookup'],
-                                threshes = pc_return['matchprob_filts'],
-                                pot_match_tab = pc_return['matching_probs'])
+                                threshes = pc_return['matchprob_filts'])
 # torch.save(test_nonrigid, '/D/ImageMatch/supernonrigid.pt')
 
 # Automatic mathces

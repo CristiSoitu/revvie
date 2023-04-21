@@ -11,7 +11,6 @@ from torch import optim
 from torch.nn import functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 import random
-from datetime import datetime
 
 #######################
 #######################
@@ -296,13 +295,12 @@ def unit_hash_3d(unit_arr, pad):
 # match_df: unit IDs of in vitro (col 0) and in vivo (col 1) manual matches.
 # conf_alpha: p-value tolerance for confidence interval.
 # z_range_scale: extra range on z-axis for finding potential matches
-
 def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                           z_range_scale = 1.75):
     ## Initial parameterization
     lr_linear = 0.001 # learning rate / step size for the linear part of the affine matrix
     lr_translation = 1  # learning rate / step size for the translation vector
-    min_affine_iters = 500
+    min_affine_iters = 5000
     max_affine_iters = 50000
     tr = 10  # volume thrshold constant for GMM
 
@@ -366,11 +364,6 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
         # For each triangle
         # print(len(stack_del.simplices))
         for t in range(0, len(stack_del.simplices)):
-            # now = datetime.now()
-
-            # current_time = now.strftime("%H:%M:%S")
-            # print("Current Time =", current_time)
-
             print(str(int(slicenum)) + ": " + str(t) + " / " + str(len(stack_del.simplices)))
             ## Take 4 guideposts from 3D
             ## Find corresponding 2D guideposts.
@@ -383,14 +376,9 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
             rig_y = 0.0
             rig_x = 0.0
             # first two columns of rotation matrix
-            if t == 0:
-                linear = torch.nn.Parameter(torch.eye(3)[:, :2])
-                translation = torch.nn.Parameter(torch.tensor(
-                    [rig_x, rig_y, rig_z]))  # translation vector
-            else:
-                linear = torch.nn.Parameter(init_linear_warm)
-                translation = torch.nn.Parameter(init_translation_warm)  # translation vector
-
+            linear = torch.nn.Parameter(torch.eye(3)[:, :2])
+            translation = torch.nn.Parameter(torch.tensor(
+                [rig_x, rig_y, rig_z]))  # translation vector
             affine_optimizer = optim.Adam([{'params': linear, 'lr': lr_linear},
                                            {'params': translation, 'lr': lr_translation}])
 
@@ -407,7 +395,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                 ## Euclidean distance as optimization metric.
                 dist_loss = (((stack_guide - pred_slice_guides)**2)).sum()
 
-                if (i - dist_loss_best_iter) > 100 and i > min_affine_iters:
+                if (i - dist_loss_best_iter) > 500 and i > min_affine_iters:
                     break
                 dist_loss_var = torch.std(
                     torch.sum(((stack_guide - pred_slice_guides)**2), dim=1))
@@ -435,7 +423,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                                       [aff[0][0][2, 0, 2, 0], aff[0][0][2, 1, 2, 1]]])
             translation_g2 = torch.tensor(
                 [aff[1][1][0, 0], aff[1][1][1, 1], aff[1][1][2, 2]])
-            
+
             # Calculate confidence intervals.
             conf_constant = dist_loss_var * 4 * scipy.stats.norm.ppf(1 - conf_alpha / 2) / \
                 scipy.stats.chi2.ppf(
@@ -448,9 +436,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                 translation_g2 ** -1 + affine_translation
             sd_affine_linear = dist_loss_var * linear_g2
             sd_affine_translation = dist_loss_var * translation_g2
-            
-            init_linear_warm = linear.detach().clone()
-            init_translation_warm = translation.detach().clone()
+
             ## Save parameters as a list of dicts.
             affine_res_matrices.append({'slice': slicenum, "triangle": t, "alpha": conf_alpha, 
                                         'dist': dist_loss,
@@ -464,7 +450,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                                         "lower_linear": lowerconf_affine_linear,
                                         "upper_translation": upperconf_affine_translation,
                                         "lower_translation": lowerconf_affine_translation})
-            
+
             # Apply affine transform from 2D to 3D.
             ## For each slice neuron, find if it belongs to quad and apply transform.
             slice_guide_array = proper_quad_test(

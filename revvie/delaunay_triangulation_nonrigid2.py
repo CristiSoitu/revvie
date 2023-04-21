@@ -11,7 +11,6 @@ from torch import optim
 from torch.nn import functional as F
 from torch.distributions.multivariate_normal import MultivariateNormal
 import random
-from datetime import datetime
 
 #######################
 #######################
@@ -190,99 +189,26 @@ def gmm_prob(matched_cent, true_cent, thresh_x, thresh_y, thresh_z,
 #######################
 #######################
 
-# Helper function to get keys of a dictionary.
-def getList(dict):
-    return [*dict]
-
-#######################
-#######################
-#######################
-
-
 # Match filtering
-# ref_units, cross_units: x-y-z-ID of centroids.
+# match1, match2: x-y-z-ID of centroids.
 # gr: scaling for threshold filter.   
-def match_filter_dict_3d(ref_units, cross_units, hash_dict, gx, gy, gz, 
-                         same_units = False):
+def match_filter_dict_3d(match1, match2, gx, gy, gz, same_units = False):
     match_dict = {}
-    for a in range(0, len(ref_units)):
+    for a in range(0, len(match1)):
+        pot_matches = []
         pot_dist = []
-        
-        x_min =  np.min(np.array(getList(hash_dict['x'])).astype(float))
-        x_max =  np.max(np.array(getList(hash_dict['x'])).astype(float))
-        y_min =  np.min(np.array(getList(hash_dict['y'])).astype(float))
-        y_max =  np.max(np.array(getList(hash_dict['y'])).astype(float))
-        z_min =  np.min(np.array(getList(hash_dict['z'])).astype(float))
-        z_max =  np.max(np.array(getList(hash_dict['z'])).astype(float))
-        
-        x_hashes = np.arange(np.maximum(np.around(ref_units[a, 0] - gx - 0.1, 1), x_min), 
-                             np.minimum(np.around(ref_units[a, 0] + gx + 0.1, 1), x_max), 0.1)
-        y_hashes = np.arange(np.maximum(np.around(ref_units[a, 1] - gy - 0.1, 1), y_min), 
-                             np.minimum(np.around(ref_units[a, 1] + gy + 0.1, 1), y_max), 0.1)
-        z_hashes = np.arange(np.maximum(np.around(ref_units[a, 2] - gz - 0.1, 1), z_min), 
-                             np.minimum(np.around(ref_units[a, 2] + gz + 0.1, 1), z_max), 0.1)
-        
-        
-        x_inrange = []
-        y_inrange = []
-        z_inrange = []
-        
-        for ii in x_hashes:
-            x_inrange = np.append(x_inrange, hash_dict['x'][str(np.around(ii, 1))])
-        for ii in y_hashes:
-            y_inrange = np.append(y_inrange, hash_dict['y'][str(np.around(ii, 1))])
-        for ii in z_hashes:
-            z_inrange = np.append(z_inrange, hash_dict['z'][str(np.around(ii, 1))])
-        
-        row_matches = np.intersect1d(np.intersect1d(x_inrange, y_inrange), z_inrange)
-        
-            
-        pot_matches = cross_units[row_matches.astype(int), 3]
-        
-        for b in row_matches:
-            bb = b.astype(int)
-            dx = ref_units[a, 0] - cross_units[bb, 0]
-            dy = ref_units[a, 1] - cross_units[bb, 1]
-            dz = ref_units[a, 2] - cross_units[bb, 2]
-            pot_dist.append((dx ** 2 + dy ** 2 + dz ** 2) ** 0.5)
-            
-        match_dict[str(ref_units[a, 3])] = {'matchIDs': pot_matches, 'dists': pot_dist}
-        
+        for b in range(0, len(match2)):
+            if(match1[a, 3] == match2[b, 3] and same_units):
+                continue
+            dx = match1[a, 0] - match2[b, 0]
+            dy = match1[a, 1] - match2[b, 1]
+            dz = match1[a, 2] - match2[b, 2]
+            if abs(dx) < gx and abs(dy) < gy and abs(dz) < gz:
+                pot_matches.append(match2[b, 3])
+                pot_dist.append(dx ** 2 + dy ** 2 + dz ** 2)
+        match_dict[str(match1[a, 3])] = {'matchIDs': pot_matches, 'dists': pot_dist}
     return(match_dict)
 
-#######################
-#######################
-#######################
-
-# Create hash table of units in 3d space.
-# Elements correspond to TABLE ROWS.
-# unit_arr: x-y-z-ID of centroids.
-def unit_hash_3d(unit_arr, pad):
-    hash_dict = {'x':{}, 'y':{}, 'z':{}}
-    x_hashes = np.arange(np.around(np.min(unit_arr[:, 0]) - 0.1 - pad, 1), 
-                         np.around(np.max(unit_arr[:, 0]) + 0.1 + pad, 1), 0.1)
-    y_hashes = np.arange(np.around(np.min(unit_arr[:, 1]) - 0.1 - pad, 1), 
-                         np.around(np.max(unit_arr[:, 1]) + 0.1 + pad, 1), 0.1)
-    z_hashes = np.arange(np.around(np.min(unit_arr[:, 2]) - 0.1 - pad, 1), 
-                         np.around(np.max(unit_arr[:, 2]) + 0.1 + pad, 1), 0.1)
-    for ii in x_hashes:
-        hash_dict['x'][str(np.around(ii, 1))] = []
-    for ii in y_hashes:
-        hash_dict['y'][str(np.around(ii, 1))] = []
-    for ii in z_hashes:
-        hash_dict['z'][str(np.around(ii, 1))] = []
-    for uu in range(0, len(unit_arr)):
-        hash_dict['x'][str(np.round(unit_arr[uu, 0], 1))] = \
-            np.append(hash_dict['x'][str(np.round(unit_arr[uu, 0], 1))], 
-            uu)
-        hash_dict['y'][str(np.round(unit_arr[uu, 1], 1))] = \
-            np.append(hash_dict['y'][str(np.round(unit_arr[uu, 1], 1))], 
-            uu)
-        hash_dict['z'][str(np.round(unit_arr[uu, 2], 1))] = \
-            np.append(hash_dict['z'][str(np.round(unit_arr[uu, 2], 1))], 
-            uu)
-    return(hash_dict)
-        
 #######################
 #######################
 #######################
@@ -296,25 +222,25 @@ def unit_hash_3d(unit_arr, pad):
 # match_df: unit IDs of in vitro (col 0) and in vivo (col 1) manual matches.
 # conf_alpha: p-value tolerance for confidence interval.
 # z_range_scale: extra range on z-axis for finding potential matches
-
 def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                           z_range_scale = 1.75):
     ## Initial parameterization
-    lr_linear = 0.001 # learning rate / step size for the linear part of the affine matrix
+    lr_linear = 0.001  # learning rate / step size for the linear part of the affine matrix
     lr_translation = 1  # learning rate / step size for the translation vector
-    min_affine_iters = 500
-    max_affine_iters = 50000
+    min_affine_iters = 3000
+    max_affine_iters = 30000
     tr = 10  # volume thrshold constant for GMM
+
 
     invivo_avg_cent = np.array([[invivo_cent[invivo_cent[:, 3] == i, 0].mean(),
                                 invivo_cent[invivo_cent[:, 3] == i, 1].mean(),
                                 invivo_cent[invivo_cent[:, 3] == i, 2].mean(), i]
                                for i in pd.unique(invivo_cent[:, 3])])
     # Preserve order
-    invitro_matches = invitro_cent[[np.where(np.isin(invitro_cent[:, 3], x))[
-        0][0] for x in match_df[:, 0]]]
-    invivo_matches = invivo_avg_cent[[np.where(np.isin(invivo_cent[:, 3], x))[
-        0][0] for x in match_df[:, 1]]]
+
+    invitro_matches = invitro_cent[[np.where(np.isin(invitro_cent[:, 3], x))[0][0] for x in match_df[:, 0]]]
+
+    invivo_matches = invivo_avg_cent[[np.where(np.isin(invivo_cent[:, 3], x))[0][0] for x in match_df[:, 1]]]
     sliceids = np.unique(invitro_matches[:, 0])
 
     # Create transform information saving.
@@ -364,13 +290,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
         invivo_del_df.loc[np.where(
             stack_tri_cents != -1)[0], 'Del_Tri'] = stack_tri_cents[np.where(stack_tri_cents != -1)[0]]
         # For each triangle
-        # print(len(stack_del.simplices))
         for t in range(0, len(stack_del.simplices)):
-            # now = datetime.now()
-
-            # current_time = now.strftime("%H:%M:%S")
-            # print("Current Time =", current_time)
-
             print(str(int(slicenum)) + ": " + str(t) + " / " + str(len(stack_del.simplices)))
             ## Take 4 guideposts from 3D
             ## Find corresponding 2D guideposts.
@@ -383,19 +303,13 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
             rig_y = 0.0
             rig_x = 0.0
             # first two columns of rotation matrix
-            if t == 0:
-                linear = torch.nn.Parameter(torch.eye(3)[:, :2])
-                translation = torch.nn.Parameter(torch.tensor(
-                    [rig_x, rig_y, rig_z]))  # translation vector
-            else:
-                linear = torch.nn.Parameter(init_linear_warm)
-                translation = torch.nn.Parameter(init_translation_warm)  # translation vector
-
+            linear = torch.nn.Parameter(torch.eye(3)[:, :2])
+            translation = torch.nn.Parameter(torch.tensor(
+                [rig_x, rig_y, rig_z]))  # translation vector
             affine_optimizer = optim.Adam([{'params': linear, 'lr': lr_linear},
                                            {'params': translation, 'lr': lr_translation}])
 
-            dist_loss_best = math.inf
-            dist_loss_best_iter = -1
+            dist_loss_old = math.inf
             # Optimize
             for i in range(max_affine_iters):
                 # Zero gradients
@@ -407,7 +321,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                 ## Euclidean distance as optimization metric.
                 dist_loss = (((stack_guide - pred_slice_guides)**2)).sum()
 
-                if (i - dist_loss_best_iter) > 100 and i > min_affine_iters:
+                if (dist_loss_old - dist_loss) / dist_loss < 10 ** -9 and i > min_affine_iters:
                     break
                 dist_loss_var = torch.std(
                     torch.sum(((stack_guide - pred_slice_guides)**2), dim=1))
@@ -416,9 +330,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                 # Update
                 dist_loss.backward()
                 affine_optimizer.step()
-                if(dist_loss < dist_loss_best * 0.99 or dist_loss < dist_loss_best - 1):
-                    dist_loss_best = dist_loss
-                    dist_loss_best_iter = i
+                dist_loss_old = dist_loss
 
             # 2nd moment information
             def distance_metric_hess(lin, trans):
@@ -435,7 +347,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                                       [aff[0][0][2, 0, 2, 0], aff[0][0][2, 1, 2, 1]]])
             translation_g2 = torch.tensor(
                 [aff[1][1][0, 0], aff[1][1][1, 1], aff[1][1][2, 2]])
-            
+
             # Calculate confidence intervals.
             conf_constant = dist_loss_var * 4 * scipy.stats.norm.ppf(1 - conf_alpha / 2) / \
                 scipy.stats.chi2.ppf(
@@ -448,9 +360,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                 translation_g2 ** -1 + affine_translation
             sd_affine_linear = dist_loss_var * linear_g2
             sd_affine_translation = dist_loss_var * translation_g2
-            
-            init_linear_warm = linear.detach().clone()
-            init_translation_warm = translation.detach().clone()
+
             ## Save parameters as a list of dicts.
             affine_res_matrices.append({'slice': slicenum, "triangle": t, "alpha": conf_alpha, 
                                         'dist': dist_loss,
@@ -464,7 +374,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
                                         "lower_linear": lowerconf_affine_linear,
                                         "upper_translation": upperconf_affine_translation,
                                         "lower_translation": lowerconf_affine_translation})
-            
+
             # Apply affine transform from 2D to 3D.
             ## For each slice neuron, find if it belongs to quad and apply transform.
             slice_guide_array = proper_quad_test(
@@ -505,7 +415,7 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
     # Smaller set to bigger.
     tx = tr
     ty = tr
-    tz = tr
+    tz = tr * z_range_scale
     invitro_trans_df_rel = invitro_trans_df.iloc[np.where(
         np.array(invitro_trans_df[['Del_Tri']] != 0))[0], :]
         
@@ -515,19 +425,11 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
     matchprob_df = matchprob_df.rename(columns={'TransUnit': 'SliceUnit', 'TrueUnit': 'StackUnit',
                                                 'trans_x': 'slice_x', 'trans_y': 'slice_y', 'trans_z': 'slice_z',
                                                 'true_x': 'stack_x', 'true_y': 'stack_y', 'true_z': 'stack_z'})
-    
-    invivo_coordlookup = unit_hash_3d(invivo_avg_cent[np.where(np.isin(invivo_avg_cent[:, 3], 
-                                                          matchprob_df['StackUnit']))[0], :], 
-                                      tr)
-    
 
     ## Return: affine transform parameters, estimated transform in the in vitro, GMM prob table.
     return_dict = {'manual_matches': match_df,
                    'affine_parameters': affine_res_matrices,
-                   'invivo_near_units': invivo_avg_cent[np.where(np.isin(invivo_avg_cent[:, 3], 
-                                                                         matchprob_df['StackUnit']))[0], :],
-                   'invivo_units': invivo_avg_cent,
-                   'invivo_lookup':invivo_coordlookup,
+                   'invivo_units': invivo_del_df,
                    'invitro_units_trans': invitro_trans_df_rel,
                    'invitro_units_full': invitro_trans_df,
                    'matching_probs': matchprob_df,
@@ -545,17 +447,14 @@ def piecewise_affine_cent(invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
 
 # aff_invitro_cent: x-y-z-ID of affine-transformed in vitro (slice) centroids.
 # invivo_cent: x-y-z-ID of in vivo (stack) centroids.
-# invivo_l: lookup coordinate table of invivo units.
 # random_seed: if desired, set a seed for nonrigid initialization.
 # match_df: unit IDs of in vitro (col 0) and in vivo (col 1) manual matches.
-# invivo_l: coordinate lookup table for invivo units.
-# invitro_l: coordinate lookup table for transformed invitro units.
 # conf_alpha: p-value tolerance for confidence interval.
 # threshes: manual distance thresholds for being considered a possible match.
 
 
-def nonrigid_demon(aff_invitro_cent, invivo_cent, match_df, invivo_l,
-                   conf_alpha=0.05, random_seed=None, threshes=None, pot_match_tab = None,
+def nonrigid_demon(aff_invitro_cent, invivo_cent, match_df, conf_alpha=0.05,
+                   random_seed=None, threshes=None,
                    z_range_scale=1.75):
 
     if type(random_seed) == int:
@@ -567,8 +466,8 @@ def nonrigid_demon(aff_invitro_cent, invivo_cent, match_df, invivo_l,
     dens_factor = 50
     true_factor = 1
     td_factor = 50
-    min_demon_iters = 100
-    max_demon_iters = 1000
+    min_demon_iters = 200
+    max_demon_iters = 2000
     grid_coef = 0.2
     invivo_coef = 0.2
     ex = 5
@@ -577,20 +476,11 @@ def nonrigid_demon(aff_invitro_cent, invivo_cent, match_df, invivo_l,
     tx = 12
     ty = 10
     tz = 10
-    
-    if threshes == None:
-        gx = tx
-        gy = ty
-        gz = tz * z_range_scale
-    else:
-        gx = threshes[0]
-        gy = threshes[1]
-        gz = threshes[2]
-        
+
     # Match scores between invitro points
     invivo_scores = match_filter_dict_3d(np.array(invivo_cent)[:, 0:4],
-                                         invivo_cent, invivo_l,
-                                         gx, gy, gz, True)
+                                         np.array(invivo_cent)[:, 0:4],
+                                         ex, ey, ez, True)
     total_invivo_scores = 0
     for s in invivo_scores:
         invivo_scores[s]['scores'] = [math.exp(-((x * invivo_coef / ((ex ** 2 + ey ** 2 + ez ** 2) ** 0.5)) ** 2))
@@ -599,8 +489,8 @@ def nonrigid_demon(aff_invitro_cent, invivo_cent, match_df, invivo_l,
 
     # Match scores between invitro + invitro points
     cross_scores = match_filter_dict_3d(np.array(aff_invitro_cent),
-                                        invivo_cent, invivo_l,
-                                        gx, gy, gz, False)
+                                        np.array(invivo_cent)[:, 0:4],
+                                        ex, ey, ez, False)
     for s in cross_scores:
         cross_scores[s]['scores'] = [math.exp(-((x * grid_coef / ((ex ** 2 + ey ** 2 + ez ** 2) ** 0.5)) ** 2))
                                      for x in cross_scores[s]['dists']]
@@ -612,28 +502,33 @@ def nonrigid_demon(aff_invitro_cent, invivo_cent, match_df, invivo_l,
                                       'weight_decay': wd_deformations}])
 
     deformations_old = deformations.clone()
-    loss_old = math.inf
-    
-    if np.all(pot_match_tab == None):
-        pot_match_tab = np.zeros([0, 5])
-        matched_cent = torch.tensor(np.array(aff_invitro_cent))
-        true_cent = torch.tensor(np.array(invivo_cent))
-        manual = match_df
-        for m in range(0, len(matched_cent)):
-            print(str(m) + "/" + str(len(matched_cent)))
-            for r in range(0, len(true_cent)):
-                dx = true_cent[r, 0] - matched_cent[m, 0]
-                dy = true_cent[r, 1] - matched_cent[m, 1]
-                dz = true_cent[r, 2] - matched_cent[m, 2]
-                if abs(dx) < gx and abs(dy) < gy and abs(dz) < gz:
-                    pot_match_tab = np.append(pot_match_tab, [[matched_cent[m, 3].item(), true_cent[r, 3].item(),
-                                                               dx.item(), dy.item(), dz.item()]], axis=0)
+    if threshes == None:
+        gx = tx
+        gy = ty
+        gz = tz * z_range_scale
     else:
-        pot_match_tab = np.array(pot_match_tab)[:, [0, 1, 8, 9, 10]]
-                                 
+        gx = threshes[0]
+        gy = threshes[1]
+        gz = threshes[2]
+    loss_old = math.inf
+
+    pot_match_tab = np.zeros([0, 5])
+    matched_cent = torch.tensor(np.array(aff_invitro_cent))
+    true_cent = torch.tensor(np.array(invivo_cent))
+    manual = match_df
+    for m in range(0, len(matched_cent)):
+        print(str(m) + "/" + str(len(matched_cent)))
+        for r in range(0, len(true_cent)):
+            dx = true_cent[r, 0] - matched_cent[m, 0]
+            dy = true_cent[r, 1] - matched_cent[m, 1]
+            dz = true_cent[r, 2] - matched_cent[m, 2]
+            if abs(dx) < gx and abs(dy) < gy and abs(dz) < gz:
+                pot_match_tab = np.append(pot_match_tab, [[matched_cent[m, 3].item(), true_cent[r, 3].item(),
+                                                           dx.item(), dy.item(), dz.item()]], axis=0)
     delta_cov = torch.cov(torch.tensor(
         pot_match_tab[:, 2:5].transpose().astype(float))) / 2
     delta_cov[2, 2] = delta_cov[2, 2] * z_range_scale
+
     for i in range(0, max_demon_iters):
         # Zero gradients
         nonrigid_optimizer.zero_grad()
@@ -747,7 +642,7 @@ def nonrigid_demon(aff_invitro_cent, invivo_cent, match_df, invivo_l,
                 dens_factor * large_prob / large_prob_norm / len(matched_cent) -
                 td_factor * dens_oto / large_prob_norm / len(matched_cent) +
                 true_factor * prob_oto / len(matched_cent))
-        # print('Loss at iteration {}: {:5.4f}'.format(i, loss.item()))
+        print('Loss at iteration {}: {:5.4f}'.format(i, loss.item()))
 
         # Update
         loss.backward()
