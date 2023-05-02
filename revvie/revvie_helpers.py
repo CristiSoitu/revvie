@@ -21,6 +21,9 @@ def ConfigReader(config_file):
     parser.add_argument('--dataset_path', default='nothing yet', type=str)
     parser.add_argument('--positions', default=config['positions'], type=str2list)
 
+    parser.add_argument('--vivo_centroids_file', default=config['vivo_centroids_file'], type=str)
+    parser.add_argument('--vitro_centroids_file', default=config['vitro_centroids_file'], type=str)
+
     parser.add_argument('--unmatched_color', default=config['unmatched_color'], type=tuple_float_type)
     parser.add_argument('--matched_color', default=config['matched_color'], type=tuple_float_type)
     parser.add_argument('--struct_color', default=config['struct_color'], type=tuple_float_type)
@@ -84,7 +87,7 @@ def load_latest_state(args):
 
     # check to see if there is a slices folder
     if not os.path.exists(args.matcher_path + '/slices'):
-        vitro_points_np = np.loadtxt(centroids_path + 'geneseq_slices_centroids.txt')
+        vitro_points_np = np.loadtxt(centroids_path + args.vitro_centroids_file)
         vitro_points_np[:, [1, 2]] = vitro_points_np[:, [2, 1]]
 
         slices_path = quick_dir(args.matcher_path , 'slices')
@@ -131,7 +134,7 @@ def load_latest_state(args):
             np.savetxt(latest_state_path + 'vivo_matched_points.txt', np.empty((0, 10)), fmt='%.1f')
 
 
-        vivo_points = np.loadtxt(args.dataset_path  + 'centroids/padded_func_centroids.txt')
+        vivo_points = np.loadtxt(centroids_path + args.vivo_centroids_file)
 
 
         vivo_points[:, [1, 2]] = vivo_points[:, [2, 1]]

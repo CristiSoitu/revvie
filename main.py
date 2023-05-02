@@ -5,11 +5,16 @@ import warnings
 
 
 ## Program that implements revvie, a pipleine that matches in vivo and in vitro neurons.
-
+'''
+Assumes the following structure of the dataset:
+    - dataset/
+             /centroids/in_vitro_centroids.txt, in_vivo_centroids.txt
+             /images/in_vitro_images.tif, in_vivo_images.tif
+             revvie_config.toml     
+'''
 
 #dataset = 'BCM28382'
 dataset = 'BCM27679_1'
-
 dataset_path = '/Users/soitu/Desktop/datasets/' + dataset + '/revvie/'
 
 config_file = dataset_path + 'revvie_config.toml'
@@ -21,13 +26,12 @@ def main():
 
         args = ConfigReader(config_file)
         #args.matcher_name = create_matcher_profile()
-        args.matcher_name = 'Jingyang'
+        args.matcher_name = 'Cristi'
         args.dataset_path = dataset_path
         args.matcher_path = quick_dir(args.dataset_path, 'matcher_' + args.matcher_name)
 
-        src_path = dataset_path + '../matching/matcher_' + args.matcher_name + '/'
-        dst_path = args.matcher_path + 'slices/'
-
+    #    src_path = dataset_path + '../matching/matcher_' + args.matcher_name + '/'
+    #    dst_path = args.matcher_path + 'slices/'
     #positions to run stats on: [19, 20, 22, Pos23, 28]
     #    slices = ['Pos19', 'Pos20', 'Pos22', 'Pos23', 'Pos28']
     #    slices = ['Pos20']
@@ -37,23 +41,18 @@ def main():
 
     #    transfer_matches(src_path, dst_path)
     #    breakpoint()
+    
+    
+    # load images and points
         vitro_points, vivo_points = load_latest_state(args)
-    #    breakpoint()
-
-
         
     #    vitro_images_list = ['blood_vessels.tif', 'somas_blood_vessels.tif', 'genes.tif', 'barcoded.tif']
         vitro_images_list = ['blood_vessels.tif', 'somas_blood_vessels.tif', 'genes.tif']
-
-        #vitro_images_list = ['blood_vessels.tif', 'somas_blood_vessels.tif']
-
         vitro_images_list = [args.dataset_path + 'images/' + image for image in vitro_images_list]
         vivo_images_list = ['rotated_blood_vessels_stack.tif', 'rotated_gfp_stack.tif']
-        #vivo_images_list = ['rotated_blood_vessels_stack.tif']
-
         vivo_images_list = [args.dataset_path + 'images/' + image for image in vivo_images_list]
         
-        
+        # add extra points if needed
         vivo_struct_points = np.loadtxt(args.dataset_path + 'centroids/' + 'padded_struct_centroids.txt')
         vivo_struct_points[:, [1, 2]] = vivo_struct_points[:, [2, 1]]
         
