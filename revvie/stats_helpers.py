@@ -230,6 +230,43 @@ def compare_automatch(args, matchers_path=[], slices=[]):
         matches_pd.to_csv(stats_path + 'matcher_' + str(matcher_id) + '_automatch' +'.csv', index=False)
 
 
+def compute_automatch_prediction(args, slices=[]):
+    
+    stats_path = quick_dir(args.matcher_path, 'stats')
+    if slices == []:
+        slices = args.positions
+    
+
+    for slice in slices:
+
+        slice_path = args.matcher_path + 'slices/' + slice + '/'
+        latest_state_path = slice_path + 'latest/'
+        automatch_path = latest_state_path + 'automatch/'
+
+        matches = np.loadtxt(latest_state_path + 'matches.txt')
+        accepted = np.loadtxt(latest_state_path + 'accepted.txt')
+        rejected = np.loadtxt(latest_state_path + 'rejected.txt')
+        automatic_matches = pd.read_csv(automatch_path + 'automatic_matches.csv')
+        #keep only SliceUnit, StackUnit and PredProb
+        automatic_matches = automatic_matches[['SliceUnit', 'StackUnit', 'PredProb']]
+
+        # add another columns Accepted and Rejected
+        accepted_scores = []
+        rejected_scores = []
+
+        for i in range(len(automatic_matches)):
+            row = automatic_matches.iloc[i]
+            slice_unit = row['SliceUnit']
+            stack_unit = row['StackUnit']
+            if [slice_unit, stack_unit] in accepted.tolist():
+                accepted_scores.append(row['PredProb'])
+            elif [slice_unit, stack_unit] in rejected.tolist():
+                rejected_scores.append(row['PredProb'])
+        print('len accepted scores: ', len(accepted_scores))
+        print('len rejected scores: ', len(rejected_scores))
+        print('len automatic matches: ', len(automatic_matches))
+        np.savetxt(stats_path + 'accepted_scores_' + slice + '.txt', accepted_scores, fmt='%.2f')
+        np.savetxt(stats_path + 'rejected_scores_' + slice + '.txt', rejected_scores, fmt='%.2f')
 
 
 

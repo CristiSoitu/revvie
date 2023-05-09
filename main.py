@@ -14,7 +14,8 @@ Assumes the following structure of the dataset:
 '''
 
 #dataset = 'BCM28382'
-dataset = 'BCM27679_1'
+dataset = 'BCM27679_1_validation'
+#dataset = 'BCM27679_1'
 dataset_path = '/Users/soitu/Desktop/datasets/' + dataset + '/revvie/'
 
 config_file = dataset_path + 'revvie_config.toml'
@@ -26,7 +27,7 @@ def main():
 
         args = ConfigReader(config_file)
         #args.matcher_name = create_matcher_profile()
-        args.matcher_name = 'Cristi'
+        args.matcher_name = 'Anchor'
         args.dataset_path = dataset_path
         args.matcher_path = quick_dir(args.dataset_path, 'matcher_' + args.matcher_name)
 
@@ -34,7 +35,7 @@ def main():
     #    dst_path = args.matcher_path + 'slices/'
     #positions to run stats on: [19, 20, 22, Pos23, 28]
     #    slices = ['Pos19', 'Pos20', 'Pos22', 'Pos23', 'Pos28']
-    #    slices = ['Pos20']
+    #    slices = ['Pos19']
     #    slices = ['Pos19', 'Pos28']
     #    run_automatch_outside(args, slices)
     #    breakpoint()
@@ -45,11 +46,16 @@ def main():
     
     # load images and points
         vitro_points, vivo_points = load_latest_state(args)
+#        breakpoint()
         
     #    vitro_images_list = ['blood_vessels.tif', 'somas_blood_vessels.tif', 'genes.tif', 'barcoded.tif']
-        vitro_images_list = ['blood_vessels.tif', 'somas_blood_vessels.tif', 'genes.tif']
+    #    vitro_images_list = ['blood_vessels.tif', 'somas_blood_vessels.tif', 'genes.tif']
+        vitro_images_list = ['blood_vessels.tif', 'somas_blood_vessels.tif']
+    
         vitro_images_list = [args.dataset_path + 'images/' + image for image in vitro_images_list]
-        vivo_images_list = ['rotated_blood_vessels_stack.tif', 'rotated_gfp_stack.tif']
+        #vivo_images_list = ['rotated_blood_vessels_stack.tif', 'rotated_gfp_stack.tif']
+        vivo_images_list = ['rotated_blood_vessels_stack.tif']
+
         vivo_images_list = [args.dataset_path + 'images/' + image for image in vivo_images_list]
         
         # add extra points if needed
@@ -73,6 +79,7 @@ def main():
         revViewer = RevViewer(vitro_images_list, vivo_images_list, vitro_cloud_points, vivo_cloud_points, args)
         revViewer.add_cloud(revViewer.vivo_viewer, vivo_struct_cloud_points)
 
+        
         revViewer.run()
 
 main()

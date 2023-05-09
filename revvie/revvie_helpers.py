@@ -31,11 +31,14 @@ def ConfigReader(config_file):
     parser.add_argument('--rejected_edge_color', default=config['rejected_edge_color'], type=tuple_float_type)
     parser.add_argument('--predicted_edge_color', default=config['predicted_edge_color'], type=tuple_float_type)
     parser.add_argument('--struct_edge_color', default=config['struct_edge_color'], type=tuple_float_type)
+    parser.add_argument('--anchor_edge_color', default=config['anchor_edge_color'], type=tuple_float_type)
 
     parser.add_argument('--vivo_edge_size', default=config['vivo_edge_size'], type=float)
     parser.add_argument('--vitro_edge_size', default=config['vitro_edge_size'], type=float)
     parser.add_argument('--vitro_point_size', default=config['vitro_point_size'], type=int)
     parser.add_argument('--vivo_point_size', default=config['vivo_point_size'], type=int)
+    parser.add_argument('--vitro_anchor_point_size', default=config['vitro_anchor_point_size'], type=int)
+    parser.add_argument('--vivo_anchor_point_size', default=config['vivo_anchor_point_size'], type=int)
 
     parser.add_argument('--opacity', default=config['opacity'], type=float)
     parser.add_argument('--symbol', default=config['symbol'], type=str)
@@ -51,6 +54,11 @@ def ConfigReader(config_file):
     parser.add_argument('--run_alignment_all_slices_key', default=config['run_alignment_all_slices_key'], type=str)
     parser.add_argument('--import_predictions_key', default=config['import_predictions_key'], type=str)
     parser.add_argument('--display_pair_key', default=config['display_pair_key'], type=str)
+    parser.add_argument('--generate_grid_key', default=config['generate_grid_key'], type=str)
+    parser.add_argument('--add_anchor_point_key', default=config['add_anchor_point_key'], type=str)
+
+    parser.add_argument('--x_grid_points', default=config['x_grid_points'], type=int)
+    parser.add_argument('--y_grid_points', default=config['y_grid_points'], type=int)
 
     parser.add_argument('--matcher_name', default='Matcher', type=str)
     parser.add_argument('--matcher_path', default='', type=str)
@@ -108,6 +116,7 @@ def load_latest_state(args):
             points = np.hstack((points, colors))
             points = np.hstack((points, edge_colors))
 
+            mock_anchors = np.array([[0,0,0,0,0,0,0,1,1,1], [0,0,0,0,0,0,0,1,1,1]])
 
             np.save(latest_state_path + 'displayed_points.npy', points)
             np.savetxt(latest_state_path + 'displayed_points.txt', points, fmt='%.1f')
@@ -118,6 +127,12 @@ def load_latest_state(args):
             np.save(latest_state_path + 'matches.npy', np.empty((0, 2), dtype=np.int32))
             np.savetxt(latest_state_path + 'matches.txt', np.empty((0, 2), dtype=np.int32), fmt='%i')
 
+            np.save(latest_state_path + 'vivo_anchors.npy', mock_anchors)
+            np.savetxt(latest_state_path + 'vivo_anchors.txt', mock_anchors, fmt='%.2f')
+
+            np.save(latest_state_path + 'vitro_anchors.npy', mock_anchors)
+            np.savetxt(latest_state_path + 'vitro_anchors.txt', mock_anchors, fmt='%.2f')
+
             np.save(latest_state_path + 'predicted.npy', np.empty((0, 2), dtype=np.int32))
             np.savetxt(latest_state_path + 'predicted.txt', np.empty((0, 2), dtype=np.int32), fmt='%i')
 
@@ -126,6 +141,9 @@ def load_latest_state(args):
 
             np.save(latest_state_path + 'accepted.npy', np.empty((0, 2), dtype=np.int32))
             np.savetxt(latest_state_path + 'accepted.txt', np.empty((0, 2), dtype=np.int32), fmt='%i')
+
+            np.save(latest_state_path + 'dontknow.npy', np.empty((0, 2), dtype=np.int32))
+            np.savetxt(latest_state_path + 'dontknow.txt', np.empty((0, 2), dtype=np.int32), fmt='%i')
 
             np.save(latest_state_path + 'vivo_matched_indices.npy', np.empty((0, 1)))
             np.savetxt(latest_state_path + 'vivo_matched_indices.txt', np.empty((0, 1)), fmt='%i')
@@ -347,7 +365,10 @@ def create_backup(path):
         for file_name in os.listdir(latest_folder):
             source_path = os.path.join(latest_folder, file_name)
             dest_path = os.path.join(backup_path, file_name)
-            shutil.copy2(source_path, dest_path)
+            try:
+                shutil.copy2(source_path, dest_path)
+            except IsADirectoryError:
+                shutil.copytree(source_path, dest_path)
     else:
         print(f"The latest folder does not exist in path {path}.")
         print(f"The latest folder does not exist in path {path}.")

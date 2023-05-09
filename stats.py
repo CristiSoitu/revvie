@@ -5,7 +5,7 @@ import warnings
 
 
 #dataset = 'BCM28382'
-dataset = 'BCM27679_1'
+dataset = 'BCM27679_1_validation'
 
 dataset_path = '/Users/soitu/Desktop/datasets/' + dataset + '/revvie/'
 
@@ -18,7 +18,7 @@ def main():
 
         args = ConfigReader(config_file)
         #args.matcher_name = create_matcher_profile()
-        args.matcher_name = 'Cristi'
+        args.matcher_name = 'Bench'
         args.dataset_path = dataset_path
         args.matcher_path = quick_dir(args.dataset_path, 'matcher_' + args.matcher_name)
 
@@ -27,9 +27,9 @@ def main():
         matcher1_path = quick_dir(args.dataset_path, 'matcher_' + matcher1)
         matcher2_path = quick_dir(args.dataset_path, 'matcher_' + matcher2)
         slices = ['Pos19', 'Pos20', 'Pos22', 'Pos23', 'Pos28']
-        #slices = []
+        #slices = ['Pos20']
         #compute_prediction_accuracy(args, slices)
-        compare_matching(args, matcher1_path, matcher2_path, slices)
-        compare_automatch(args, [matcher1_path, matcher2_path], slices)
-        
+        #compare_matching(args, matcher1_path, matcher2_path, slices)
+        #compare_automatch(args, [matcher1_path, matcher2_path], slices)
+        compute_automatch_prediction(args, slices)
 main()
